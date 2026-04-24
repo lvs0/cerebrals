@@ -384,11 +384,11 @@ export default function Celebrals() {
             </div>
             <p className="tagline">Biomedical Research Engine · Oncology Intelligence</p>
             <div className="src-row">
-              <span className="sbadge sb-teal">PubMed</span>
-              <span className="sbadge sb-viol">ClinicalTrials</span>
-              <span className="sbadge sb-cyan">TCGA · GDC</span>
-              <span className="sbadge sb-amb">GEO</span>
-              <span className="sbadge sb-pink">Groq AI</span>
+              <a href="https://pubmed.ncbi.nlm.nih.gov" target="_blank" rel="noopener noreferrer" className="sbadge sb-teal">PubMed</a>
+              <a href="https://clinicaltrials.gov" target="_blank" rel="noopener noreferrer" className="sbadge sb-viol">ClinicalTrials</a>
+              <a href="https://portal.gdc.cancer.gov" target="_blank" rel="noopener noreferrer" className="sbadge sb-cyan">TCGA · GDC</a>
+              <a href="https://www.ncbi.nlm.nih.gov/geo" target="_blank" rel="noopener noreferrer" className="sbadge sb-amb">GEO</a>
+              <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" className="sbadge sb-pink">Groq AI</a>
             </div>
           </header>
 
