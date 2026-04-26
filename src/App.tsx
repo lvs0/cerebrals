@@ -374,6 +374,71 @@ export default function Celebrals() {
   const [errA,setErrA]       = useState<string | null>(null);
   const [errB,setErrB]       = useState<string | null>(null);
 
+  // Enquête state
+  const [eqStep, setEqStep] = useState(0); // 0=symptoms, 1=analysis, 2=recommendation
+  const [eqDescription, setEqDescription] = useState("");
+  const [eqSymptoms, setEqSymptoms] = useState<string[]>([]);
+  const [eqResult, setEqResult] = useState<{recommendation: string; message: string; level: string} | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cerebrals_enquete");
+      if (stored) {
+        const data = JSON.parse(stored);
+        setEqDescription(data.description || "");
+        setEqSymptoms(data.symptoms || []);
+      }
+    } catch {}
+  }, []);
+
+  function saveEnquete() {
+    localStorage.setItem("cerebrals_enquete", JSON.stringify({description: eqDescription, symptoms: eqSymptoms}));
+  }
+
+  function toggleSymptom(s: string) {
+    setEqSymptoms(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+  }
+
+  function computeRecommendation() {
+    const hasSeverity = eqSymptoms.some(s => ["fièvre", "douleur intense", "saignement", "difficulté respiratoire", "perte de conscience"].includes(s));
+    const symptomCount = eqSymptoms.length;
+    if (hasSeverity || symptomCount >= 3) {
+      return {recommendation: "Consultez un médecin", message: "Vos symptômes nécessitent une évaluation médicale professionnelle. Veuillez consulter un médecin dans les plus brefs délais.", level: "urgent"};
+    } else if (symptomCount >= 1) {
+      return {recommendation: "Surveillance recommandée", message: "Vos symptômes méritent attention. Un avis médical est conseillé pour un suivi adapté.", level: "advisory"};
+    } else {
+      return {recommendation: "Aucun symptôme sélectionné", message: "Sélectionnez vos symptômes pour obtenir une recommandation.", level: "none"};
+    }
+  }
+
+  function handleEnqueteNext() {
+    if (eqStep === 0) {
+      saveEnquete();
+      setEqStep(1);
+    } else if (eqStep === 1) {
+      const rec = computeRecommendation();
+      setEqResult(rec);
+      setEqStep(2);
+    }
+  }
+
+  function handleEnqueteBack() {
+    if (eqStep > 0) setEqStep(s => s - 1);
+    if (eqStep === 2) setEqResult(null);
+  }
+
+  function handleEnqueteReset() {
+    setEqStep(0); setEqDescription(""); setEqSymptoms([]); setEqResult(null);
+    localStorage.removeItem("cerebrals_enquete");
+  }
+
+  const SYMPTOM_OPTIONS = [
+    "Fièvre", "Fatigue", "Douleur", "Nausée", "Vomissements",
+    "Douleur intense", "Saignement", "Difficulté respiratoire",
+    "Perte de connaissance", "Maux de tête", "Vertiges", "Insomnie",
+    "Perte d'appétit", "Perte de poids", "Gonflement", "Eruption cutanée"
+  ];
+
   // Check API key on mount
   useEffect(() => {
     if (!GROQ_API_KEY) {
@@ -504,6 +569,196 @@ export default function Celebrals() {
                 </div>
               )}
               {(resA||resB)&&!loadA&&!loadB&&<div className="disc">⚠ Outil de recherche académique. Sources : PubMed · ClinicalTrials · TCGA/GDC · GEO · Groq AI.</div>}
+            </div>
+          )}
+
+          {mode==="enquete"&&(
+            <div className="rw">
+              <div className="rh" style={{marginBottom:20}}>
+                <span className="rq">// Enquête de santé</span>
+                <span className="rm">
+                  {eqStep === 0 ? "Étape 1/3 : Symptômes" : eqStep === 1 ? "Étape 2/3 : Analyse" : "Étape 3/3 : Recommandation"}
+                </span>
+              </div>
+
+              {/* Stepper */}
+              <div style={{display:"flex",gap:8,marginBottom:24,justifyContent:"center"}}>
+                {["Symptômes","Analyse","Recommandation"].map((label,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{
+                      width:32,height:32,borderRadius:"50%",
+                      background: i <= eqStep ? "linear-gradient(135deg,var(--teal),var(--violet))" : "var(--g0)",
+                      border: i <= eqStep ? "none" : "1px solid var(--gb)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,
+                      color: i <= eqStep ? "#050810" : "var(--muted)",
+                      boxShadow: i <= eqStep ? "0 0 14px rgba(0,229,200,.4)" : "none",
+                    }}>{i < eqStep ? "✓" : i + 1}</div>
+                    <span style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color: i <= eqStep ? "var(--teal)" : "var(--muted)"}}>{label}</span>
+                    {i < 2 && <div style={{width:40,height:1,background: i < eqStep ? "var(--teal)" : "var(--gb)",opacity: i < eqStep ? 1 : 0.4}}/>}
+                  </div>
+                ))}
+              </div>
+
+              {/* Step 0: Symptoms */}
+              {eqStep === 0 && (
+                <div>
+                  <div className="panel" style={{marginBottom:16}}>
+                    <div className="ph">
+                      <div className="pdot" style={{background:"var(--teal)",boxShadow:"0 0 7px var(--teal)"}}/>
+                      <span className="ptitle" style={{color:"var(--teal)"}}>Décrivez votre état</span>
+                    </div>
+                    <div className="pb open">
+                      <textarea
+                        className="sinp"
+                        placeholder="Décrivez librement vos symptômes, quand ils ont commencé, leur intensité…"
+                        value={eqDescription}
+                        onChange={e => setEqDescription(e.target.value)}
+                        style={{width:"100%",minHeight:100,resize:"vertical",marginBottom:8}}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="panel" style={{marginBottom:16}}>
+                    <div className="ph">
+                      <div className="pdot" style={{background:"var(--violet)",boxShadow:"0 0 7px var(--violet)"}}/>
+                      <span className="ptitle" style={{color:"var(--violet)"}}>Sélectionnez vos symptômes</span>
+                      <span className="pcnt">{eqSymptoms.length} sélectionné{eqSymptoms.length>1?"s":""}</span>
+                    </div>
+                    <div className="pb open">
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
+                        {SYMPTOM_OPTIONS.map(s => {
+                          const checked = eqSymptoms.includes(s);
+                          return (
+                            <div key={s} onClick={() => toggleSymptom(s)} style={{
+                              padding:"10px 14px",borderRadius:9,cursor:"pointer",
+                              background: checked ? "rgba(0,229,200,.12)" : "var(--g0)",
+                              border: checked ? "1px solid rgba(0,229,200,.4)" : "1px solid var(--gb)",
+                              fontFamily:"'DM Mono',monospace",fontSize:11,color: checked ? "var(--teal)" : "var(--muted)",
+                              transition:"all .2s",
+                              display:"flex",alignItems:"center",gap:8,
+                            }}>
+                              <div style={{
+                                width:14,height:14,borderRadius:3,
+                                background: checked ? "var(--teal)" : "transparent",
+                                border: checked ? "none" : "1px solid var(--muted)",
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                flexShrink:0,
+                              }}>
+                                {checked && <span style={{color:"#050810",fontSize:9,fontWeight:700}}>✓</span>}
+                              </div>
+                              {s}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button className="sbtn" style={{width:"100%"}} onClick={handleEnqueteNext}>
+                    Analyser mes symptômes →
+                  </button>
+                </div>
+              )}
+
+              {/* Step 1: Analysis */}
+              {eqStep === 1 && (
+                <div>
+                  <div style={{
+                    padding:"24px 28px",background:"var(--g0)",border:"1px solid var(--gb)",
+                    borderRadius:14,backdropFilter:"blur(20px)",marginBottom:16,
+                    animation:"fu .5s ease both"
+                  }}>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--teal)",marginBottom:16}}>Analyse en cours…</div>
+                    {eqDescription && (
+                      <div style={{marginBottom:14}}>
+                        <div style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--amber)",marginBottom:6}}>Description</div>
+                        <p style={{fontSize:12,color:"rgba(232,234,240,.82)",lineHeight:1.7,fontStyle:"italic",fontFamily:"'Cormorant Garamond',serif"}}>{eqDescription}</p>
+                      </div>
+                    )}
+                    {eqSymptoms.length > 0 && (
+                      <div>
+                        <div style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--violet)",marginBottom:8}}>Symptômes identifiés</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                          {eqSymptoms.map(s => (
+                            <span key={s} style={{
+                              padding:"4px 11px",borderRadius:20,fontSize:11,
+                              background:"rgba(155,93,229,.12)",border:"1px solid rgba(155,93,229,.2)",
+                              color:"var(--violet)",fontFamily:"'DM Mono',monospace"
+                            }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{marginTop:16,paddingTop:16,borderTop:"1px solid var(--gb)",display:"flex",gap:8,alignItems:"center"}}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:"var(--teal)",boxShadow:"0 0 8px var(--teal)",animation:"dp 1s ease-in-out infinite"}}/>
+                      <span style={{fontSize:11,color:"var(--muted)",fontStyle:"italic",fontFamily:"'Cormorant Garamond',serif"}}>Génération de la recommandation…</span>
+                    </div>
+                  </div>
+                  <button className="sbtn" style={{width:"100%"}} onClick={handleEnqueteNext}>
+                    Obtenir ma recommandation →
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2: Recommendation */}
+              {eqStep === 2 && eqResult && (
+                <div style={{animation:"fu .5s ease both"}}>
+                  <div style={{
+                    padding:"28px 32px",borderRadius:16,textAlign:"center",
+                    background: eqResult.level === "urgent"
+                      ? "linear-gradient(135deg,rgba(241,91,181,.08),rgba(155,93,229,.08))"
+                      : eqResult.level === "advisory"
+                      ? "linear-gradient(135deg,rgba(255,209,102,.08),rgba(0,229,200,.08))"
+                      : "var(--g0)",
+                    border: eqResult.level === "urgent"
+                      ? "1px solid rgba(241,91,181,.35)"
+                      : eqResult.level === "advisory"
+                      ? "1px solid rgba(255,209,102,.3)"
+                      : "1px solid var(--gb)",
+                    backdropFilter:"blur(20px)",marginBottom:16,
+                  }}>
+                    {eqResult.level === "urgent" && (
+                      <div style={{fontSize:40,marginBottom:12}}>🚨</div>
+                    )}
+                    {eqResult.level === "advisory" && (
+                      <div style={{fontSize:40,marginBottom:12}}>👁</div>
+                    )}
+                    {eqResult.level === "none" && (
+                      <div style={{fontSize:40,marginBottom:12}}>ℹ</div>
+                    )}
+                    <div style={{
+                      fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:800,
+                      letterSpacing:".1em",textTransform:"uppercase",
+                      color: eqResult.level === "urgent" ? "var(--pink)" : eqResult.level === "advisory" ? "var(--amber)" : "var(--muted)",
+                      marginBottom:14,
+                    }}>{eqResult.recommendation}</div>
+                    <p style={{fontSize:13,lineHeight:1.7,color:"rgba(232,234,240,.82)",fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic"}}>{eqResult.message}</p>
+                  </div>
+
+                  {eqResult.level !== "none" && (
+                    <div style={{
+                      padding:"18px 22px",background:"rgba(241,91,181,.05)",border:"1px solid rgba(241,91,181,.15)",
+                      borderRadius:12,marginBottom:16,
+                    }}>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".2em",textTransform:"uppercase",color:"var(--pink)",marginBottom:8}}>⚠ Avertissement médical</div>
+                      <p style={{fontSize:11,color:"rgba(232,234,240,.65)",lineHeight:1.6}}>
+                        Cette enquête ne remplace pas une consultation médicale. Les résultats sont uniquement informatifs et basés sur vos symptômes déclarés. En cas de doute, contactez un professionnel de santé.
+                      </p>
+                    </div>
+                  )}
+
+                  <div style={{display:"flex",gap:10}}>
+                    <button className="sbtn" style={{flex:1}} onClick={handleEnqueteBack}>← Retour</button>
+                    <button style={{
+                      flex:1,padding:"16px 22px",background:"rgba(255,255,255,.04)",
+                      border:"1px solid var(--gb)",borderRadius:12,fontFamily:"'Syne',sans-serif",
+                      fontSize:11,fontWeight:700,letterSpacing:".12em",textTransform:"uppercase",
+                      cursor:"pointer",color:"var(--muted)",transition:"all .2s"
+                    }} onClick={handleEnqueteReset}>Nouvelle enquête</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
