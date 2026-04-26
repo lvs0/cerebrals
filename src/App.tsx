@@ -1,6 +1,27 @@
 import { useState, useEffect } from "react";
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+const STORAGE_KEY = "cerebrals_chat_history";
+const SYSTEM_PROMPT = `Tu es Cerebrals, un assistant de recherche biomédicale et oncologique avancé.
+
+Tu as accès aux données suivantes (informations live via les APIs de l'application) :
+- PubMed · articles scientifiques récents
+- ClinicalTrials.gov · essais cliniques en recrutement
+- TCGA/GDC Cancer Genomics Data Commons · données génomiques
+- GEO · datasets d'expression génique
+- Groq AI · synthèse et analyse oncologique
+
+Contexte de l'application : Cerebrals est un moteur de recherche biomédical pour l'oncologie. Les utilisateurs cherchent des informations sur des pathologies cancéreuses, traitements, essais cliniques, biomarqueurs et génomique.
+
+Règles :
+- Réponds en français sauf si explicitement demandé autrement
+- Sois précis, scientifique, mais accessible
+- Cite tes sources quand pertinent (PubMed, ClinicalTrials, TCGA, etc.)
+- Si une question sort du domaine médical/biomédical, réponds poliment que tu es spécialisé en oncologie et recherche biomédicale
+- Ne donne jamais d'avis médical personnalisé — redirige vers un professionnel de santé
+- Structure tes réponses avec des sections claires (vue d'ensemble, mécanismes, traitements, essais, etc.)
+- Pour les recherches de pathologies, propose d'utiliser l'onglet Analyse principale de l'app pour une recherche complète`;
 
 const CSS = `@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap'); *{box-sizing:border-box;margin:0;padding:0} :root{--teal:#00e5c8;--violet:#9b5de5;--pink:#f15bb5;--amber:#ffd166;--cyan:#06b6d4;--bg:#050810;--g0:rgba(255,255,255,0.04);--gb:rgba(255,255,255,0.08);--text:#e8eaf0;--muted:#6b7280} body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;-webkit-font-smoothing:antialiased} .app{min-height:100vh;position:relative;overflow-x:hidden} .bg-fx{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 15% 5%,rgba(0,229,200,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 85% 85%,rgba(155,93,229,.08) 0%,transparent 60%),radial-gradient(ellipse 40% 40% at 50% 50%,rgba(241,91,181,.03) 0%,transparent 70%),#050810} .noise{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")} .grid-bg{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:linear-gradient(rgba(0,229,200,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,200,.025) 1px,transparent 1px);background-size:60px 60px} .wrap{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:40px 20px 80px} .hdr{text-align:center;margin-bottom:44px;animation:fd .8s ease both} .logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px} .logo-orb{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--violet));display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(0,229,200,.4),0 0 48px rgba(0,229,200,.1);animation:orb 3s ease-in-out infinite} @keyframes orb{0%,100%{box-shadow:0 0 24px rgba(0,229,200,.4),0 0 48px rgba(0,229,200,.1)}50%{box-shadow:0 0 36px rgba(0,229,200,.6),0 0 72px rgba(0,229,200,.2)}} .logo-txt{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;background:linear-gradient(135deg,var(--teal) 0%,#fff 50%,var(--violet) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text} .tagline{font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--muted);letter-spacing:.08em;margin-bottom:10px} .src-row{display:flex;justify-content:center;gap:7px;flex-wrap:wrap} .sbadge{font-size:10px;padding:2px 9px;border-radius:20px;letter-spacing:.1em;border:1px solid;text-transform:uppercase} .sb-teal{border-color:rgba(0,229,200,.25);color:var(--teal)} .sb-viol{border-color:rgba(155,93,229,.25);color:var(--violet)} .sb-cyan{border-color:rgba(6,182,212,.25);color:var(--cyan)} .sb-amb{border-color:rgba(255,209,102,.25);color:var(--amber)} .sb-pink{border-color:rgba(241,91,181,.25);color:var(--pink)} .mode-tabs{display:flex;gap:4px;background:var(--g0);border:1px solid var(--gb);border-radius:12px;padding:4px;width:fit-content;margin:0 auto 28px;animation:fu .8s .1s ease both} .mtab{padding:8px 22px;border-radius:8px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .25s} .mtab.on{background:linear-gradient(135deg,rgba(0,229,200,.15),rgba(155,93,229,.15));color:var(--text);border:1px solid rgba(0,229,200,.2)} .sz{animation:fu .8s .2s ease both;margin-bottom:14px} .srow{display:flex;gap:10px;align-items:center} .cmp-inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px} @media(max-width:640px){.cmp-inputs{grid-template-columns:1fr}} .sinp{flex:1;padding:16px 20px;background:var(--g0);border:1px solid var(--gb);border-radius:12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);outline:none;transition:border-color .3s,box-shadow .3s;backdrop-filter:blur(20px)} .sinp::placeholder{color:var(--muted)} .sinp:focus{border-color:rgba(0,229,200,.4);box-shadow:0 0 0 1px rgba(0,229,200,.12),0 8px 32px rgba(0,0,0,.4)} .sbtn{padding:16px 22px;background:linear-gradient(135deg,var(--teal),var(--violet));border:none;border-radius:12px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;color:#050810;white-space:nowrap;transition:opacity .2s,transform .2s} .sbtn:hover{opacity:.85;transform:scale(1.02)} .sbtn:disabled{opacity:.35;cursor:not-allowed;transform:none} .qtags{display:flex;flex-wrap:wrap;gap:7px;animation:fu .8s .3s ease both;margin-bottom:32px} .qtag{padding:4px 11px;border:1px solid var(--gb);border-radius:20px;font-size:11px;letter-spacing:.04em;color:var(--muted);cursor:pointer;transition:all .2s;background:var(--g0)} .qtag:hover{border-color:rgba(0,229,200,.3);color:var(--teal);background:rgba(0,229,200,.06)} .exp-bar{display:flex;justify-content:flex-end;margin-bottom:16px} .exp-btn{padding:8px 18px;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.2);border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);cursor:pointer;transition:all .2s} .exp-btn:hover{background:rgba(255,209,102,.14);border-color:rgba(255,209,102,.35)} .loader{text-align:center;padding:50px 0;animation:fi .4s ease} .scanner{width:72px;height:72px;margin:0 auto 20px;position:relative} .sr{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(0,229,200,.2);animation:srr 2s ease-in-out infinite} .sr:nth-child(2){inset:10px;animation-delay:.3s} .sr:nth-child(3){inset:20px;animation-delay:.6s} @keyframes srr{0%,100%{border-color:rgba(0,229,200,.2);transform:scale(1)}50%{border-color:rgba(0,229,200,.6);transform:scale(1.06)}} .sd{position:absolute;inset:32px;border-radius:50%;background:var(--teal);box-shadow:0 0 12px var(--teal);animation:dp 1s ease-in-out infinite} @keyframes dp{0%,100%{opacity:1}50%{opacity:.2}} .steps{display:flex;flex-direction:column;gap:7px;margin-top:16px} .step{font-size:11px;letter-spacing:.1em;text-transform:uppercase;transition:color .4s} .step.done{color:rgba(0,229,200,.4)}.step.active{color:var(--teal)}.step.pending{color:var(--muted)} .rw{animation:fu .6s ease both} .cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px} @media(max-width:700px){.cmp-grid{grid-template-columns:1fr}} .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px} .rq{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--teal)} .rm{font-size:10px;color:var(--muted)} .panel{background:var(--g0);border:1px solid var(--gb);border-radius:14px;backdrop-filter:blur(20px);margin-bottom:12px;overflow:hidden;transition:border-color .3s} .panel:hover{border-color:rgba(255,255,255,.11)} .ph{display:flex;align-items:center;gap:9px;padding:14px 18px;border-bottom:1px solid var(--gb);cursor:pointer;user-select:none} .pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0} .ptitle{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;flex:1} .pcnt{font-size:10px;color:var(--muted)} .pchev{font-size:10px;color:var(--muted);transition:transform .3s} .pchev.open{transform:rotate(180deg)} .pb{padding:18px;display:none} .pb.open{display:block} .ss{margin-bottom:18px} .ss-t{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;color:var(--teal)} .stxt{font-size:12px;line-height:1.8;color:rgba(232,234,240,.82)} .piste{margin-bottom:9px;padding-left:11px;border-left:2px solid rgba(0,229,200,.2)} .piste-n{color:var(--teal);font-weight:500;font-size:12px} .piste-s{color:rgba(155,93,229,.8);font-size:10px;margin-left:7px;font-family:'DM Mono',monospace} .piste-d{font-size:11px;color:rgba(232,234,240,.65);margin-top:3px;line-height:1.6} .bm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px} .bmc{padding:10px 12px;background:rgba(0,229,200,.04);border:1px solid rgba(0,229,200,.12);border-radius:9px} .bm-n{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--teal);margin-bottom:3px} .bm-r{font-size:10px;color:var(--muted);line-height:1.4} .tri{padding:12px 0;border-bottom:1px solid var(--gb)} .tri:last-child{border-bottom:none} .tri-t{font-size:12px;color:var(--text);margin-bottom:6px;line-height:1.5} .tbadges{display:flex;gap:7px;flex-wrap:wrap} .tb{font-size:10px;letter-spacing:.04em;padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace} .tb-ph{background:rgba(155,93,229,.12);color:var(--violet);border:1px solid rgba(155,93,229,.2)} .tb-st{background:rgba(0,229,200,.08);color:var(--teal);border:1px solid rgba(0,229,200,.18)} .tb-id{background:rgba(241,91,181,.08);color:var(--pink);border:1px solid rgba(241,91,181,.18)} .tcga-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:14px} .tcgac{padding:11px 13px;background:rgba(6,182,212,.04);border:1px solid rgba(6,182,212,.12);border-radius:9px} .tcga-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--cyan);margin-bottom:3px;font-weight:500} .tcga-nm{font-size:11px;color:rgba(232,234,240,.8);margin-bottom:5px;line-height:1.4} .tcga-st{display:flex;gap:8px} .tcga-s{font-size:10px;color:var(--muted)} .tcga-s span{color:var(--cyan);font-weight:500} .genes{display:flex;flex-wrap:wrap;gap:6px} .gchip{padding:3px 9px;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.18);border-radius:6px;font-family:'DM Mono',monospace;font-size:11px;color:var(--cyan)} .geo-item{padding:10px 0;border-bottom:1px solid var(--gb)} .geo-item:last-child{border-bottom:none} .geo-t{font-size:12px;color:var(--text);margin-bottom:4px;line-height:1.5} .geo-m{display:flex;gap:10px;flex-wrap:wrap} .geo-b{font-size:10px;color:var(--muted);font-family:'Cormorant Garamond',serif;font-style:italic} .srci{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--gb);align-items:flex-start} .srci:last-child{border-bottom:none} .src-n{font-size:10px;color:var(--muted);flex-shrink:0;margin-top:2px} .src-t{font-size:12px;color:rgba(232,234,240,.8);line-height:1.5} .src-j{font-size:10px;color:var(--muted);margin-top:2px;font-style:italic;font-family:'Cormorant Garamond',serif} .err{padding:14px 18px;background:rgba(241,91,181,.06);border:1px solid rgba(241,91,181,.2);border-radius:10px;font-size:12px;color:var(--pink);text-align:center} .empty{text-align:center;padding:56px 0;animation:fi .5s ease both} .empty-i{font-size:36px;margin-bottom:14px;opacity:.25} .empty-t{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px} .empty-s{font-size:12px;color:rgba(107,114,128,.65);font-family:'Cormorant Garamond',serif;font-style:italic} .disc{margin-top:32px;padding:12px 16px;background:rgba(255,209,102,.04);border:1px solid rgba(255,209,102,.1);border-radius:8px;font-size:10px;color:rgba(255,209,102,.45);text-align:center;line-height:1.7;letter-spacing:.03em} .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px} .stat-card{background:var(--g0);border:1px solid var(--gb);border-radius:12px;padding:16px;text-align:center;transition:border-color .3s} .stat-card:hover{border-color:rgba(0,229,200,.2)} .stat-val{font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:var(--teal);margin-bottom:4px} .stat-lbl{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase} .api-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(0,229,200,.08);border:1px solid rgba(0,229,200,.2);border-radius:20px;font-size:10px;color:var(--teal);margin-bottom:20px} .api-badge.offline{background:rgba(241,91,181,.08);border-color:rgba(241,91,181,.2);color:var(--pink)} @keyframes fd{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}} @keyframes fu{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}} @keyframes fi{from{opacity:0}to{opacity:1}} @media print{ .bg-fx,.noise,.grid-bg,.mode-tabs,.qtags,.sz,.exp-bar,.stats-row{display:none!important} .app,.wrap{background:white!important;color:#111!important;padding:0!important} .panel{border:1px solid #ddd!important;background:white!important;margin-bottom:10px!important;break-inside:avoid} .ph{background:#f5f5f5!important;border-bottom:1px solid #ddd!important} .pb{display:block!important} .logo-txt{-webkit-text-fill-color:#111!important;background:none!important} *{backdrop-filter:none!important;box-shadow:none!important} }`;
 
@@ -402,6 +423,11 @@ export default function Celebrals() {
   const [traitResults, setTraitResults] = useState<any[]>([]);
   const [traitSearched, setTraitSearched] = useState(false);
 
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<{role: "user" | "assistant"; content: string; ts: number}[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+
   // Load traitement from localStorage
   useEffect(() => {
     try {
@@ -553,7 +579,69 @@ Valid JSON only.`;
     if (!GROQ_API_KEY) {
       setUseLocal(true);
     }
+    // Load chat history from localStorage
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setChatMessages(JSON.parse(stored));
+      }
+    } catch {}
   }, []);
+
+  function saveChatHistory(msgs: typeof chatMessages) {
+    setChatMessages(msgs);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+  }
+
+  async function handleChatSend() {
+    const text = chatInput.trim();
+    if (!text || chatLoading) return;
+    const userMsg: typeof chatMessages[0] = { role: "user", content: text, ts: Date.now() };
+    const newMessages = [...chatMessages, userMsg];
+    saveChatHistory(newMessages);
+    setChatInput("");
+    setChatLoading(true);
+    try {
+      if (!GROQ_API_KEY) {
+        const fallback: typeof chatMessages[0] = {
+          role: "assistant",
+          content: "Je n'ai pas de clé API Groq configurée. Pour activer le chat en temps réel, ajoutez VITE_GROQ_API_KEY dans votre fichier .env.local. En attendant, utilisez l'onglet Analyse pour des recherches oncologiques complètes.",
+          ts: Date.now()
+        };
+        saveChatHistory([...newMessages, fallback]);
+        return;
+      }
+      const GroqMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: GROQ_MODEL, messages: [{ role: "system", content: SYSTEM_PROMPT }, ...GroqMessages], temperature: 0.7, max_tokens: 1024 })
+      });
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || "Erreur de réponse.";
+      const assistantMsg: typeof chatMessages[0] = { role: "assistant", content: reply, ts: Date.now() };
+      saveChatHistory([...newMessages, assistantMsg]);
+    } catch (e) {
+      const errMsg: typeof chatMessages[0] = { role: "assistant", content: "Erreur de connexion. Veuillez réessayer.", ts: Date.now() };
+      saveChatHistory([...newMessages, errMsg]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  function exportChatJSON() {
+    const blob = new Blob([JSON.stringify({ messages: chatMessages, exported: new Date().toISOString() }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cerebrals-chat-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearChat() {
+    saveChatHistory([]);
+  }
 
   async function handleSingle() {
     const q=query.trim(); if(!q||loading) return;
@@ -1262,17 +1350,50 @@ Valid JSON only.`;
           {mode==="chat"&&(
             <div className="rw">
               <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                <div style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--teal)",marginBottom:8}}>Chat Agentique</div>
-                <div id="chat-messages" style={{height:300,overflowY:"auto",background:"var(--g0)",border:"1px solid var(--gb)",borderRadius:12,padding:16,fontFamily:"'DM Mono',monospace",fontSize:12,marginBottom:12}}>
-                  <div style={{color:"var(--teal)",marginBottom:12}}>🧠 Cerebrals Agent — Bonjour. Comment puis-je vous aider aujourd'hui ?</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--teal)"}}>Chat Agentique {GROQ_API_KEY ? "🟢" : "🔴"}</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={exportChatJSON} disabled={chatMessages.length===0} style={{fontSize:10,padding:"7px 13px",background:"rgba(0,229,200,.08)",border:"1px solid rgba(0,229,200,.2)",borderRadius:8,fontFamily:"'DM Mono',monospace",letterSpacing:".08em",color:"var(--teal)",cursor:chatMessages.length?"pointer":"not-allowed",opacity:chatMessages.length?1:0.4}}>📥 Export JSON</button>
+                    <button onClick={clearChat} disabled={chatMessages.length===0} style={{fontSize:10,padding:"7px 13px",background:"rgba(241,91,181,.08)",border:"1px solid rgba(241,91,181,.2)",borderRadius:8,fontFamily:"'DM Mono',monospace",letterSpacing:".08em",color:"var(--pink)",cursor:chatMessages.length?"pointer":"not-allowed",opacity:chatMessages.length?1:0.4}}>🗑 Clear</button>
+                  </div>
+                </div>
+                <div id="chat-messages" style={{height:340,overflowY:"auto",background:"var(--g0)",border:"1px solid var(--gb)",borderRadius:12,padding:16,fontFamily:"'DM Mono',monospace",fontSize:12,marginBottom:12,display:"flex",flexDirection:"column",gap:10}}>
+                  {chatMessages.length===0&&(
+                    <div style={{color:"var(--teal)",fontStyle:"italic",marginBottom:4}}>🧠 Cerebrals — Bonjour. Comment puis-je vous aider ? Je suis optimisé pour l'oncologie et la recherche biomédicale.</div>
+                  )}
+                  {chatMessages.map((msg,i)=>(
+                    <div key={i} style={{display:"flex",flexDirection:"column",gap:3}}>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:msg.role==="user"?"var(--amber)":"var(--teal)"}}>
+                        {msg.role==="user"?"Vous":"Cerebrals"} · {new Date(msg.ts).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+                      </div>
+                      <div style={{color:msg.role==="user"?"rgba(232,234,240,.85)":"var(--text)",padding:"8px 12px",background:msg.role==="user"?"rgba(255,209,102,.06)":"rgba(0,229,200,.05)",borderRadius:8,borderLeft:"2px solid",borderColor:msg.role==="user"?"var(--amber)":"var(--teal)",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{msg.content}</div>
+                    </div>
+                  ))}
+                  {chatLoading&&(
+                    <div style={{display:"flex",alignItems:"center",gap:8,color:"var(--muted)"}}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:"var(--teal)",boxShadow:"0 0 8px var(--teal)",animation:"dp 1s ease-in-out infinite"}}/>
+                      <span style={{fontStyle:"italic",fontSize:11}}>Cerebrals rédige…</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <input id="chat-input" className="sinp" placeholder="Votre question..." style={{flex:1,padding:"14px 16px"}}/>
-                  <button className="sbtn" style={{padding:"14px 20px"}} onClick={()=>{const el=document.getElementById("chat-input") as HTMLInputElement;if(el?.value){const ms=document.getElementById("chat-messages");if(ms){ms.innerHTML+='<div style={{marginBottom:10}}>Vous: '+el.value+'</div><div style={{marginBottom:10,color:"var(--teal)"}}>🧠 Cerebrals: Fonctionnalité à venir.</div>';el.value="";ms.scrollTop=ms.scrollHeight;}}}}>Envoyer</button>
+                  <input
+                    id="chat-input"
+                    className="sinp"
+                    placeholder="Posez votre question médicale…"
+                    value={chatInput}
+                    onChange={e=>setChatInput(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&handleChatSend()}
+                    style={{flex:1,padding:"14px 16px"}}
+                  />
+                  <button className="sbtn" style={{padding:"14px 20px"}} onClick={handleChatSend} disabled={chatLoading||!chatInput.trim()}>
+                    {chatLoading?"…":"Envoyer →"}
+                  </button>
                 </div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <button className="sbtn-ghost" style={{fontSize:10,padding:"8px 14px"}}>📥 Exporter Chat</button>
-                  <button className="sbtn-ghost" style={{fontSize:10,padding:"8px 14px"}}>📁 Nouvelle conversation</button>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:4}}>
+                  <button onClick={()=>setChatInput("Quels sont les derniers essais cliniques pour le cancer du poumon NSCLC?")} style={{fontSize:10,padding:"7px 12px",background:"var(--g0)",border:"1px solid var(--gb)",borderRadius:8,fontFamily:"'DM Mono',monospace",color:"var(--muted)",cursor:"pointer",transition:"all .2s"}}>NSCLC</button>
+                  <button onClick={()=>setChatInput("Explique les biomarqueurs dans le mélanome métastatique")} style={{fontSize:10,padding:"7px 12px",background:"var(--g0)",border:"1px solid var(--gb)",borderRadius:8,fontFamily:"'DM Mono',monospace",color:"var(--muted)",cursor:"pointer",transition:"all .2s"}}>Mélanome</button>
+                  <button onClick={()=>setChatInput("Quelle est la différence entre radiothérapie et chimiothérapie?")} style={{fontSize:10,padding:"7px 12px",background:"var(--g0)",border:"1px solid var(--gb)",borderRadius:8,fontFamily:"'DM Mono',monospace",color:"var(--muted)",cursor:"pointer",transition:"all .2s"}}>Radio vs Chimiothérapie</button>
                 </div>
               </div>
             </div>
