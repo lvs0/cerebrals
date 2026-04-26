@@ -374,7 +374,94 @@ export default function Celebrals() {
   const [errA,setErrA]       = useState<string | null>(null);
   const [errB,setErrB]       = useState<string | null>(null);
 
-  // Enquête state
+  // Traitement state
+  const [traitQuery, setTraitQuery] = useState("");
+  const [traitLoading, setTraitLoading] = useState(false);
+  const [traitResults, setTraitResults] = useState<any[]>([]);
+  const [traitSearched, setTraitSearched] = useState(false);
+
+  // Load traitement from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cerebrals_traitement");
+      if (stored) setTraitResults(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  function saveTraitement(list: any[]) {
+    setTraitResults(list);
+    localStorage.setItem("cerebrals_traitement", JSON.stringify(list));
+  }
+
+  async function handleTraitementSearch() {
+    const q = traitQuery.trim();
+    if (!q || traitLoading) return;
+    setTraitLoading(true);
+    setTraitSearched(false);
+    try {
+      let drugs: any[] = [];
+      if (GROQ_API_KEY) {
+        const prompt = `You are a pharmacology research assistant. List the most effective medications for the following pathology: "${q}".
+
+For each medication provide:
+- name: official drug name
+- generic: generic name
+- efficacy: effectiveness rating (0-100%)
+- mechanism: short description of mechanism of action
+- sideEffects: array of 3-5 common side effects
+- approval: approval status (Approved/Phase III/Phase II/Experimental)
+- category: drug category (chemotherapy/targeted/immunotherapy/hormonal/supportive)
+
+List 6-8 medications. Respond ONLY in strict JSON, no markdown, no text:
+{"drugs":[{"name":"","generic":"","efficacy":"","mechanism":"","sideEffects":[],"approval":"","category":""}]}
+Valid JSON only.`;
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [
+            { role: "system", content: "You are a pharmacology research assistant. Respond only in valid JSON." },
+            { role: "user", content: prompt }
+          ], temperature: 0.3, max_tokens: 1400 })
+        });
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || "";
+        let clean = text.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+        const match = clean.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          drugs = parsed.drugs || [];
+        }
+      }
+      if (!drugs.length) {
+        // Fallback static data
+        drugs = [
+          { name: "Pembrolizumab", generic: "Keytruda", efficacy: "82%", mechanism: "Anti-PD-1 immunotherapy", sideEffects: ["Fatigue", "Nausée", "Éruption cutanée", "Arthralgie"], approval: "Approved", category: "immunotherapy" },
+          { name: "Osimertinib", generic: "Tagrisso", efficacy: "78%", mechanism: "EGFR tyrosine kinase inhibitor", sideEffects: ["Diarrhée", "Éruption cutanée", "Nausée", "Fatigue"], approval: "Approved", category: "targeted" },
+          { name: "Carboplatine", generic: "Paraplatine", efficacy: "65%", mechanism: "Alkylating agent — DNA crosslinker", sideEffects: ["Myélosuppression", "Nausée", "Alopécie", "Néphrotoxicité"], approval: "Approved", category: "chemotherapy" },
+          { name: "Bevacizumab", generic: "Avastin", efficacy: "60%", mechanism: "VEGF-A monoclonal antibody", sideEffects: ["Hypertension", "Proteinurie", "Saignements", "Thrombose"], approval: "Approved", category: "targeted" },
+          { name: "Nivolumab", generic: "Opdivo", efficacy: "75%", mechanism: "Anti-PD-1 checkpoint inhibitor", sideEffects: ["Fatigue", "Colite", "Hépatite", "Éruption cutanée"], approval: "Approved", category: "immunotherapy" },
+          { name: "Erlotinib", generic: "Tarceva", efficacy: "55%", mechanism: "EGFR inhibitor", sideEffects: ["Éruption cutanée", "Diarrhée", "Nausée", "Fatigue"], approval: "Approved", category: "targeted" },
+        ];
+      }
+      // Determine winner (highest efficacy)
+      const sorted = [...drugs].sort((a, b) => {
+        const getNum = (s: string) => parseInt(s.replace(/[^0-9]/g, "")) || 0;
+        return getNum(b.efficacy) - getNum(a.efficacy);
+      });
+      const winnerName = sorted[0]?.name;
+      const withWinner = drugs.map(d => ({ ...d, winner: d.name === winnerName }));
+      saveTraitement(withWinner);
+      setTraitSearched(true);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTraitLoading(false);
+    }
+  }
+
+  function showBetaModal() {
+    alert("🧪 Fonctionnalité à venir — La création de nouveaux médicaments nécessite une validation réglementaire et ne peut être effectuée automatiquement.");
+  }
   const [eqStep, setEqStep] = useState(0); // 0=symptoms, 1=analysis, 2=recommendation
   const [eqDescription, setEqDescription] = useState("");
   const [eqSymptoms, setEqSymptoms] = useState<string[]>([]);
@@ -762,7 +849,193 @@ export default function Celebrals() {
             </div>
           )}
 
-          {(mode==="medocs")&&(
+          {mode==="traitement"&&(
+            <div className="rw">
+              <div className="rh" style={{marginBottom:20}}>
+                <span className="rq">// Recherche de traitements</span>
+                <span className="rm">Groq AI · Pharmacology Intelligence</span>
+              </div>
+
+              {/* Search */}
+              <div className="panel" style={{marginBottom:16}}>
+                <div className="ph">
+                  <div className="pdot" style={{background:"var(--teal)",boxShadow:"0 0 7px var(--teal)"}}/>
+                  <span className="ptitle" style={{color:"var(--teal)"}}>Rechercher une pathologie</span>
+                </div>
+                <div className="pb open">
+                  <div className="srow" style={{marginBottom:0}}>
+                    <input
+                      className="sinp"
+                      placeholder="Ex: cancer du poumon, glioblastome, leucémie…"
+                      value={traitQuery}
+                      onChange={e => setTraitQuery(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleTraitementSearch()}
+                    />
+                    <button className="sbtn" onClick={handleTraitementSearch} disabled={traitLoading || !traitQuery.trim()}>
+                      {traitLoading ? "…" : "Rechercher →"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Beta button */}
+              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+                <button
+                  onClick={showBetaModal}
+                  style={{
+                    padding:"8px 16px",
+                    background:"rgba(155,93,229,.08)",
+                    border:"1px solid rgba(155,93,229,.25)",
+                    borderRadius:8,
+                    fontFamily:"'DM Mono',monospace",
+                    fontSize:10,
+                    letterSpacing:".1em",
+                    textTransform:"uppercase",
+                    color:"var(--violet)",
+                    cursor:"pointer",
+                    transition:"all .2s",
+                  }}
+                >
+                  🧪 Créer nouveau médicament
+                </button>
+              </div>
+
+              {/* Loading */}
+              {traitLoading && (
+                <div className="loader">
+                  <div className="scanner"><div className="sr"/><div className="sr"/><div className="sr"/><div className="sd"/></div>
+                  <div style={{textAlign:"center",fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--teal)",marginTop:12}}>
+                    Recherche de médicaments…
+                  </div>
+                </div>
+              )}
+
+              {/* Results */}
+              {!traitLoading && traitResults.length > 0 && (
+                <div>
+                  <div className="rh" style={{marginBottom:16}}>
+                    <span className="rq">// Résultats pour: {traitQuery}</span>
+                    <span className="rm">{traitResults.length} médicaments identifiés</span>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+                    {traitResults.map((drug, i) => {
+                      const catColors: Record<string,string> = {
+                        chemotherapy: "var(--pink)",
+                        targeted: "var(--cyan)",
+                        immunotherapy: "var(--violet)",
+                        hormonal: "var(--amber)",
+                        supportive: "rgba(232,234,240,.4)"
+                      };
+                      const catColor = catColors[drug.category] || "var(--teal)";
+                      return (
+                        <div key={i} style={{
+                          background:"var(--g0)",
+                          border: drug.winner ? "1px solid rgba(0,229,200,.5)" : "1px solid var(--gb)",
+                          borderRadius:14,
+                          padding:"18px 20px",
+                          position:"relative",
+                          backdropFilter:"blur(20px)",
+                          transition:"border-color .3s",
+                        }}>
+                          {drug.winner && (
+                            <div style={{
+                              position:"absolute",top:-10,right:14,
+                              padding:"3px 10px",
+                              background:"linear-gradient(135deg,var(--teal),var(--violet))",
+                              borderRadius:20,
+                              fontFamily:"'Syne',sans-serif",
+                              fontSize:10,fontWeight:700,
+                              letterSpacing:".1em",textTransform:"uppercase",
+                              color:"#050810",
+                              boxShadow:"0 0 12px rgba(0,229,200,.5)",
+                              display:"flex",alignItems:"center",gap:4,
+                            }}>
+                              🏆 Gagnant
+                            </div>
+                          )}
+                          <div style={{marginBottom:10}}>
+                            <div style={{fontFamily:"'Syne',sans-serif",fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:3}}>{drug.name}</div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"var(--muted)"}}>{drug.generic}</div>
+                          </div>
+                          <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                            <span style={{
+                              padding:"3px 9px",
+                              background:`rgba(0,229,200,.1)`,
+                              border:"1px solid rgba(0,229,200,.25)",
+                              borderRadius:6,
+                              fontFamily:"'DM Mono',monospace",
+                              fontSize:10,color:"var(--teal)",
+                            }}>
+                              Efficacité: {drug.efficacy}
+                            </span>
+                            <span style={{
+                              padding:"3px 9px",
+                              background:`${catColor}18`,
+                              border:`1px solid ${catColor}30`,
+                              borderRadius:6,
+                              fontFamily:"'DM Mono',monospace",
+                              fontSize:10,color:catColor,
+                            }}>
+                              {drug.category}
+                            </span>
+                            <span style={{
+                              padding:"3px 9px",
+                              background:"rgba(255,209,102,.08)",
+                              border:"1px solid rgba(255,209,102,.2)",
+                              borderRadius:6,
+                              fontFamily:"'DM Mono',monospace",
+                              fontSize:10,color:"var(--amber)",
+                            }}>
+                              {drug.approval}
+                            </span>
+                          </div>
+                          <div style={{marginBottom:10}}>
+                            <div style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--violet)",marginBottom:5}}>Mécanisme</div>
+                            <p style={{fontSize:11,color:"rgba(232,234,240,.7)",lineHeight:1.6}}>{drug.mechanism}</p>
+                          </div>
+                          <div>
+                            <div style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--pink)",marginBottom:6}}>Effets secondaires</div>
+                            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                              {(drug.sideEffects || []).map((se: string, j: number) => (
+                                <span key={j} style={{
+                                  padding:"3px 8px",
+                                  background:"rgba(241,91,181,.08)",
+                                  border:"1px solid rgba(241,91,181,.18)",
+                                  borderRadius:5,
+                                  fontFamily:"'DM Mono',monospace",
+                                  fontSize:10,color:"var(--pink)",
+                                }}>{se}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="disc">⚠ Informations pharmacologiques uniquement. Ne constitue pas une prescription. Consultez toujours un médecin.</div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!traitLoading && traitSearched && traitResults.length === 0 && (
+                <div className="empty">
+                  <div className="empty-i">💊</div>
+                  <div className="empty-t">Aucun médicament trouvé</div>
+                  <div className="empty-s">Essayez avec un autre terme de pathologie</div>
+                </div>
+              )}
+
+              {!traitLoading && !traitSearched && traitResults.length === 0 && (
+                <div className="empty">
+                  <div className="empty-i">🔬</div>
+                  <div className="empty-t">Recherche de traitements</div>
+                  <div className="empty-s">Entrez une pathologie pour rechercher les médicaments associés via Groq AI</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {mode==="medocs"&&(
             <div className="rw">
               {/* Form */}
               <div className="panel" style={{marginBottom:16}}>
