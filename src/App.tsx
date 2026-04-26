@@ -332,6 +332,28 @@ export default function Celebrals() {
     } catch {}
   }, []);
 
+  // Showroom — static portfolio items
+  const [showroomItems, setShowroomItems] = useState<any[]>([]);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cerebrals_showroom");
+      if (stored) {
+        setShowroomItems(JSON.parse(stored));
+      } else {
+        // Initialize with default static data
+        const defaults = [
+          { id: "CERB-2024-001", title: "Cerebramycin V12", description: "Antibiotique de nouvelle génération à spectre étendu, conçu pour cibler les bactéries Gram-positives résistantes aux traitements standards. Phase finale de validation clinique.", tags: ["antibiotique", "résistance", "Gram+"], status: "En cours", progress: 78, phase: "Phase III" },
+          { id: "CERB-2024-002", title: "Neurostatine XR", description: "Inhibiteur de la tyrosine kinase ciblant les voies de signalisation oncogéniques dans les tumeurs cérébrales primitives. Résultats préliminaires très prometteurs.", tags: ["oncologie", "TKI", "tumeur cérébrale"], status: "Beta", progress: 45, phase: "Phase II" },
+          { id: "CERB-2023-015", title: "ImmunoGuard Plus", description: "Immunothérapie combinée anti-PD-1/PD-L1 optimisée pour réduire les effets indésirables auto-immuns. Traitement de référence en cours d'approbation.", tags: ["immunothérapie", "checkpoint", "approbation"], status: "Terminé", progress: 100, phase: "Approuvé" },
+          { id: "CERB-2022-008", title: "Cardioprime 500", description: "Cardioprotecteur métabolique développant l'activation de l'AMPK pour la prévention des lésions d'ischémie-reperfusion péri-opératoires.", tags: ["cardiologie", "AMPK", "prévention"], status: "Archivé", progress: 100, phase: "Suspendu" },
+          { id: "CERB-2025-003", title: "Dermapex-DF", description: "Agent antiprolifératif topique pour le traitement du psoriasis modéré à sévère. Nouvelle formulation nanoscale pour une biodisponibilité accrue.", tags: ["dermatologie", "psoriasis", "topique"], status: "En cours", progress: 32, phase: "Phase I" },
+        ];
+        setShowroomItems(defaults);
+        localStorage.setItem("cerebrals_showroom", JSON.stringify(defaults));
+      }
+    } catch {}
+  }, []);
+
   function saveMedocs(list: any[]) {
     setMedocs(list);
     localStorage.setItem("cerebrals_medocs", JSON.stringify(list));
@@ -1099,6 +1121,106 @@ Valid JSON only.`;
                           {m.raison&&<div style={{marginBottom:6}}><span style={{fontSize:10,color:"var(--amber)",fontFamily:"'Syne',sans-serif",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Raison</span>: <span style={{fontSize:12,color:"var(--text)"}}>{m.raison}</span></div>}
                           {m.symptoms&&<div><span style={{fontSize:10,color:"var(--cyan)",fontFamily:"'Syne',sans-serif",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Symptômes</span>: <span style={{fontSize:12,color:"rgba(232,234,240,.8)",fontStyle:"italic"}}>{m.symptoms}</span></div>}
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {mode==="showroom"&&(
+            <div className="rw">
+              <div className="rh" style={{marginBottom:20}}>
+                <span className="rq">// Showroom</span>
+                <span className="rm">Portfolio de médicaments</span>
+              </div>
+              {showroomItems.length===0?(
+                <div className="empty">
+                  <div className="empty-i">🏭</div>
+                  <div className="empty-t">Aucun projet en vitrine</div>
+                  <div className="empty-s">Les données se chargent automatiquement au démarrage</div>
+                </div>
+              ):(
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:18}}>
+                  {showroomItems.map((item, i) => {
+                    const statusColors: Record<string,{bg:string,border:string,text:string}> = {
+                      "En cours":    {bg:"rgba(0,229,200,.08)",   border:"rgba(0,229,200,.25)",   text:"var(--teal)"},
+                      "Terminé":     {bg:"rgba(6,182,212,.08)",   border:"rgba(6,182,212,.25)",   text:"var(--cyan)"},
+                      "Beta":        {bg:"rgba(155,93,229,.08)",  border:"rgba(155,93,229,.25)",  text:"var(--violet)"},
+                      "Archivé":     {bg:"rgba(107,114,128,.08)", border:"rgba(107,114,128,.2)",  text:"var(--muted)"},
+                    };
+                    const sc = statusColors[item.status] || statusColors["En cours"];
+                    return (
+                      <div key={i} style={{
+                        background:"var(--g0)",
+                        border:"1px solid var(--gb)",
+                        borderRadius:16,
+                        padding:"22px 24px",
+                        backdropFilter:"blur(20px)",
+                        transition:"border-color .3s,transform .2s",
+                        cursor:"default",
+                      }}
+                      onMouseEnter={e => {(e.currentTarget as HTMLDivElement).style.borderColor="rgba(0,229,200,.3)";(e.currentTarget as HTMLDivElement).style.transform="translateY(-2px)";}}
+                      onMouseLeave={e => {(e.currentTarget as HTMLDivElement).style.borderColor="var(--gb)";(e.currentTarget as HTMLDivElement).style.transform="translateY(0)";}}
+                      >
+                        {/* Header */}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                          <div>
+                            <div style={{fontFamily:"'Syne',sans-serif",fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:4,lineHeight:1.3}}>{item.title}</div>
+                            <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--muted)",letterSpacing:".06em"}}>{item.id}</div>
+                          </div>
+                          <div style={{
+                            padding:"4px 10px",borderRadius:20,
+                            background:sc.bg,border:"1px solid "+sc.border,
+                            fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,
+                            letterSpacing:".1em",textTransform:"uppercase",color:sc.text,
+                          }}>{item.status}</div>
+                        </div>
+
+                        {/* Description */}
+                        <p style={{fontSize:12,color:"rgba(232,234,240,.72)",lineHeight:1.7,marginBottom:16,fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic"}}>{item.description}</p>
+
+                        {/* Tags */}
+                        <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:16}}>
+                          {item.tags.map((tag, j) => (
+                            <span key={j} style={{
+                              padding:"3px 9px",
+                              background:"rgba(0,229,200,.05)",
+                              border:"1px solid rgba(0,229,200,.12)",
+                              borderRadius:6,
+                              fontFamily:"'DM Mono',monospace",
+                              fontSize:10,color:"rgba(0,229,200,.7)",
+                            }}>{tag}</span>
+                          ))}
+                        </div>
+
+                        {/* Progress */}
+                        {item.progress !== undefined && (
+                          <div>
+                            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                              <span style={{fontFamily:"'Syne',sans-serif",fontSize:9,fontWeight:700,letterSpacing:".2em",textTransform:"uppercase",color:"var(--muted)"}}>Progression</span>
+                              <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--teal)"}}>{item.progress}%</span>
+                            </div>
+                            <div style={{height:4,background:"rgba(255,255,255,.06)",borderRadius:4,overflow:"hidden"}}>
+                              <div style={{
+                                height:"100%",
+                                width:item.progress+"%",
+                                background:"linear-gradient(90deg,var(--teal),var(--violet))",
+                                borderRadius:4,
+                                transition:"width .5s ease",
+                              }}/>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Phase */}
+                        {item.phase && (
+                          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--gb)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{fontFamily:"'Syne',sans-serif",fontSize:9,fontWeight:700,letterSpacing:".2em",textTransform:"uppercase",color:"var(--muted)"}}>Phase</span>
+                            <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--amber)"}}>{item.phase}</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
