@@ -1228,6 +1228,55 @@ Valid JSON only.`;
               )}
             </div>
           )}
+
+          {mode==="routine"&&(
+            <div className="rw">
+              <div className="panel" style={{padding:20,marginBottom:16}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--teal)",marginBottom:16}}>Ma Routine Quotidienne</div>
+                {(["Réveil 5h20","Méditation 10min","Lecture 15min","Sport/Nature","Travail projet","Lights out 22h"] as string[]).map((item,i)=>{
+                  const key = "routine_"+i;
+                  const done = localStorage.getItem(key)==="1";
+                  return (
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid var(--gb)"}}>
+                      <input type="checkbox" checked={done} onChange={()=>{localStorage.setItem(key,done?"0":"1");window.location.reload();}} style={{width:18,height:18,accentColor:"var(--teal)",cursor:"pointer"}}/>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:done?"var(--muted)":"var(--text)",textDecoration:done?"line-through":"none",flex:1}}>{item}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {mode==="faq"&&(
+            <div className="rw">
+              <div style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--teal)",marginBottom:16}}>Que faire si j'ai... ?</div>
+              {([{q:"Fièvre + Fatigue",a:"Reposez-vous, hydratez-vous. Si >38.5°C + 3 jours, konsultujte dokter.",urgent:true},{q:"Douleurs thoraciques",a:"Appelez le 15 immédiatement. Ne tardez pas.",urgent:true},{q:"Maux de tête persistants",a:"Buvez de l'eau, reposez-vous. Si >1 semaine, konsultujte dokter.",urgent:false},{q:"Insomnie",a:"Évitez les écrans 1h avant le coucher.",urgent:false},{q:"Anxiété / Stress",a:"Respiration 4-7-8, méditation.",urgent:false}] as {q:string;a:string;urgent:boolean}[]).map((item,i)=>(
+                <div key={i} className="panel" style={{padding:16,marginBottom:10,borderLeft:item.urgent?"3px solid var(--pink)":"3px solid var(--teal)"}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".1em",marginBottom:8,color:item.urgent?"var(--pink)":"var(--teal)"}}>{item.urgent?"⚠️ ":"• "}{item.q}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"rgba(232,234,240,.75)",lineHeight:1.6}}>{item.a}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {mode==="chat"&&(
+            <div className="rw">
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",color:"var(--teal)",marginBottom:8}}>Chat Agentique</div>
+                <div id="chat-messages" style={{height:300,overflowY:"auto",background:"var(--g0)",border:"1px solid var(--gb)",borderRadius:12,padding:16,fontFamily:"'DM Mono',monospace",fontSize:12,marginBottom:12}}>
+                  <div style={{color:"var(--teal)",marginBottom:12}}>🧠 Cerebrals Agent — Bonjour. Comment puis-je vous aider aujourd'hui ?</div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <input id="chat-input" className="sinp" placeholder="Votre question..." style={{flex:1,padding:"14px 16px"}}/>
+                  <button className="sbtn" style={{padding:"14px 20px"}} onClick={()=>{const el=document.getElementById("chat-input") as HTMLInputElement;if(el?.value){const ms=document.getElementById("chat-messages");if(ms){ms.innerHTML+='<div style={{marginBottom:10}}>Vous: '+el.value+'</div><div style={{marginBottom:10,color:"var(--teal)"}}>🧠 Cerebrals: Fonctionnalité à venir.</div>';el.value="";ms.scrollTop=ms.scrollHeight;}}}}>Envoyer</button>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button className="sbtn-ghost" style={{fontSize:10,padding:"8px 14px"}}>📥 Exporter Chat</button>
+                  <button className="sbtn-ghost" style={{fontSize:10,padding:"8px 14px"}}>📁 Nouvelle conversation</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
