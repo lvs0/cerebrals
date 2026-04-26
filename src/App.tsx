@@ -316,6 +316,47 @@ function ResultView({data, useLocal}: {data: ResultData; useLocal?: boolean}) {
 export default function Celebrals() {
   const [mode, setMode] = useState("single");
   const [medocs, setMedocs] = useState<any[]>([]);
+  // Médocs form state
+  const [medName, setMedName] = useState("");
+  const [medDosage, setMedDosage] = useState("");
+  const [medFreq, setMedFreq] = useState("");
+  const [medRaison, setMedRaison] = useState("");
+  const [medSymptoms, setMedSymptoms] = useState("");
+  const [medSeverity, setMedSeverity] = useState(3);
+
+  // Load medocs from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cerebrals_medocs");
+      if (stored) setMedocs(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  function saveMedocs(list: any[]) {
+    setMedocs(list);
+    localStorage.setItem("cerebrals_medocs", JSON.stringify(list));
+  }
+
+  function handleAddMedoc(e: React.FormEvent) {
+    e.preventDefault();
+    if (!medName.trim()) return;
+    const newMed = {
+      id: Date.now(),
+      name: medName.trim(),
+      dosage: medDosage.trim(),
+      freq: medFreq.trim(),
+      raison: medRaison.trim(),
+      symptoms: medSymptoms.trim(),
+      severity: medSeverity,
+      ts: new Date().toLocaleDateString("fr-FR"),
+    };
+    saveMedocs([...medocs, newMed]);
+    setMedName(""); setMedDosage(""); setMedFreq(""); setMedRaison(""); setMedSymptoms(""); setMedSeverity(3);
+  }
+
+  function handleDelMedoc(id: number) {
+    saveMedocs(medocs.filter(m => m.id !== id));
+  }
   const [query,setQuery]     = useState("");
   const [loading,setLoading] = useState(false);
   const [step,setStep]       = useState(0);
@@ -466,11 +507,75 @@ export default function Celebrals() {
             </div>
           )}
 
-          {(mode==="medocs"||mode==="enquete"||mode==="traitement"||mode==="showroom"||mode==="routine"||mode==="faq"||mode==="chat")&&(
-            <div style={{textAlign:"center",padding:"60px 0"}}>
-              <div style={{fontSize:"36px",marginBottom:"14px",opacity:0.25}}>◆</div>
-              <div style={{fontFamily:"Syne",fontSize:"13px",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",marginBottom:"6px"}}>{mode} — Coming soon</div>
-              <div style={{fontSize:"12px",color:"rgba(107,114,128,.65)",fontStyle:"italic"}}>Cette section sera implémentée bientôt</div>
+          {(mode==="medocs")&&(
+            <div className="rw">
+              {/* Form */}
+              <div className="panel" style={{marginBottom:16}}>
+                <div className="ph" onClick={()=>{}}>
+                  <div className="pdot" style={{background:"var(--teal)",boxShadow:"0 0 7px var(--teal)"}}/>
+                  <span className="ptitle" style={{color:"var(--teal)"}}>Ajouter un médicament</span>
+                </div>
+                <div className="pb open">
+                  <form onSubmit={handleAddMedoc}>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                      <input className="sinp" placeholder="Nom du médicament *" value={medName} onChange={e=>setMedName(e.target.value)}/>
+                      <input className="sinp" placeholder="Dosage (ex: 500mg)" value={medDosage} onChange={e=>setMedDosage(e.target.value)}/>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                      <input className="sinp" placeholder="Fréquence (ex: 2x/jour)" value={medFreq} onChange={e=>setMedFreq(e.target.value)}/>
+                      <input className="sinp" placeholder="Raison de la prise" value={medRaison} onChange={e=>setMedRaison(e.target.value)}/>
+                    </div>
+                    <textarea className="sinp" placeholder="Symptômes ou effets observés…" value={medSymptoms} onChange={e=>setMedSymptoms(e.target.value)} style={{width:"100%",minHeight:80,resize:"vertical",marginBottom:12}}/>
+                    <div style={{marginBottom:16}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                        <span style={{fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".2em",textTransform:"uppercase",color:"var(--teal)"}}>Sévérité</span>
+                        <span style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:medSeverity>=4?"var(--pink)":medSeverity>=3?"var(--amber)":"var(--teal)"}}>{medSeverity}/5</span>
+                      </div>
+                      <input type="range" min={1} max={5} value={medSeverity} onChange={e=>setMedSeverity(Number(e.target.value))} style={{width:"100%",accentColor:"var(--teal)"}}/>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--muted)",marginTop:4}}>
+                        <span>Léger</span><span>Modéré</span><span>Sévère</span>
+                      </div>
+                    </div>
+                    <button type="submit" className="sbtn" style={{width:"100%"}} disabled={!medName.trim()}>+ Ajouter</button>
+                  </form>
+                </div>
+              </div>
+
+              {/* List */}
+              {medocs.length===0?(
+                <div className="empty">
+                  <div className="empty-i">💊</div>
+                  <div className="empty-t">Aucun médicament enregistré</div>
+                  <div className="empty-s">Utilisez le formulaire ci-dessus pour ajouter vos médicaments</div>
+                </div>
+              ):(
+                <div>
+                  <div className="rh" style={{marginBottom:16}}>
+                    <span className="rq">// Médicaments</span>
+                    <span className="rm">{medocs.length} enregistré{medocs.length>1?"s":""}</span>
+                  </div>
+                  {medocs.map(m => {
+                    const sevColor = m.severity>=4?"var(--pink)":m.severity>=3?"var(--amber)":"var(--teal)";
+                    return (
+                      <div key={m.id} className="panel" style={{marginBottom:10}}>
+                        <div className="ph">
+                          <div className="pdot" style={{background:sevColor,boxShadow:`0 0 7px ${sevColor}`}}/>
+                          <span className="ptitle">{m.name}</span>
+                          <span className="pcnt" style={{marginRight:8,color:sevColor,fontSize:11,fontFamily:"'DM Mono',monospace"}}>{m.severity}/5</span>
+                          <span className="pcnt">{m.ts}</span>
+                          <button onClick={()=>handleDelMedoc(m.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--pink)",fontSize:12,marginLeft:8,padding:"0 4px"}} title="Supprimer">✕</button>
+                        </div>
+                        <div className="pb open" style={{padding:"14px 18px"}}>
+                          {m.dosage&&<div style={{marginBottom:6}}><span style={{fontSize:10,color:"var(--teal)",fontFamily:"'Syne',sans-serif",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Dosage</span>: <span style={{fontSize:12,color:"var(--text)"}}>{m.dosage}</span></div>}
+                          {m.freq&&<div style={{marginBottom:6}}><span style={{fontSize:10,color:"var(--violet)",fontFamily:"'Syne',sans-serif",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Fréquence</span>: <span style={{fontSize:12,color:"var(--text)"}}>{m.freq}</span></div>}
+                          {m.raison&&<div style={{marginBottom:6}}><span style={{fontSize:10,color:"var(--amber)",fontFamily:"'Syne',sans-serif",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Raison</span>: <span style={{fontSize:12,color:"var(--text)"}}>{m.raison}</span></div>}
+                          {m.symptoms&&<div><span style={{fontSize:10,color:"var(--cyan)",fontFamily:"'Syne',sans-serif",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Symptômes</span>: <span style={{fontSize:12,color:"rgba(232,234,240,.8)",fontStyle:"italic"}}>{m.symptoms}</span></div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
