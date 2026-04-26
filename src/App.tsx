@@ -314,7 +314,8 @@ function ResultView({data, useLocal}: {data: ResultData; useLocal?: boolean}) {
 }
 
 export default function Celebrals() {
-  const [mode,setMode]       = useState("single");
+  const [mode, setMode] = useState("single");
+  const [medocs, setMedocs] = useState<any[]>([]);
   const [query,setQuery]     = useState("");
   const [loading,setLoading] = useState(false);
   const [step,setStep]       = useState(0);
@@ -395,6 +396,13 @@ export default function Celebrals() {
           <div className="mode-tabs">
             <button className={`mtab${mode==="single"?" on":""}`} onClick={()=>setMode("single")}>Analyse</button>
             <button className={`mtab${mode==="compare"?" on":""}`} onClick={()=>setMode("compare")}>Comparaison</button>
+            <button className={`mtab${mode==="medocs"?" on":""}`} onClick={()=>setMode("medocs")}>Médocs</button>
+            <button className={`mtab${mode==="enquete"?" on":""}`} onClick={()=>setMode("enquete")}>Enquête</button>
+            <button className={`mtab${mode==="traitement"?" on":""}`} onClick={()=>setMode("traitement")}>Traitement</button>
+            <button className={`mtab${mode==="showroom"?" on":""}`} onClick={()=>setMode("showroom")}>Showroom</button>
+            <button className={`mtab${mode==="routine"?" on":""}`} onClick={()=>setMode("routine")}>Routine</button>
+            <button className={`mtab${mode==="faq"?" on":""}`} onClick={()=>setMode("faq")}>FAQ</button>
+            <button className={`mtab${mode==="chat"?" on":""}`} onClick={()=>setMode("chat")}>Chat</button>
           </div>
 
           <div className="sz">
