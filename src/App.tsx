@@ -466,6 +466,13 @@ export default function Celebrals() {
             </div>
           )}
 
+          {(mode==="medocs"||mode==="enquete"||mode==="traitement"||mode==="showroom"||mode==="routine"||mode==="faq"||mode==="chat")&&(
+            <div style={{textAlign:"center",padding:"60px 0"}}>
+              <div style={{fontSize:"36px",marginBottom:"14px",opacity:0.25}}>◆</div>
+              <div style={{fontFamily:"Syne",fontSize:"13px",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",marginBottom:"6px"}}>{mode} — Coming soon</div>
+              <div style={{fontSize:"12px",color:"rgba(107,114,128,.65)",fontStyle:"italic"}}>Cette section sera implémentée bientôt</div>
+            </div>
+          )}
         </div>
       </div>
     </>
