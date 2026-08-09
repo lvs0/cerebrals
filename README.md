@@ -19,3 +19,8 @@ d'une pathologie seule ou comparaison entre pathologies.
 ## Licence
 
 MIT
+
+
+---
+
+**Soutenir** — [`payrequest.me/lvs0`](https://payrequest.me/lvs0)
